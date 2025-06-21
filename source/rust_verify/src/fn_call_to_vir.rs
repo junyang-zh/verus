@@ -293,6 +293,8 @@ pub(crate) fn deref_to_vir<'tcx>(
         if let TyKind::Ref(_, arg_ty, _) = arg_ty.kind() { arg_ty.clone() } else { arg_ty };
     let node_substs = tcx.mk_args(&[GenericArg::from(arg_ty)]);
 
+    let autospec_usage = if bctx.in_ghost { AutospecUsage::IfMarked } else { AutospecUsage::Final };
+
     let trait_fun =
         Arc::new(FunX { path: def_id_to_vir_path(tcx, &bctx.ctxt.verus_items, trait_fun_id) });
     let mut record_trait_fun = trait_fun.clone();
@@ -318,12 +320,11 @@ pub(crate) fn deref_to_vir<'tcx>(
         _ => crate::internal_err!(span, "unexpected deref"),
     };
 
-    record_call(bctx, expr, ResolvedCall::Call(record_trait_fun, AutospecUsage::IfMarked));
+    record_call(bctx, expr, ResolvedCall::Call(record_trait_fun, autospec_usage));
 
     let typ_args = mk_typ_args(bctx, node_substs, trait_fun_id, span)?;
     let impl_paths = get_impl_paths(bctx, trait_fun_id, node_substs, None);
-    let call_target =
-        CallTarget::Fun(target_kind, trait_fun, typ_args, impl_paths, AutospecUsage::IfMarked);
+    let call_target = CallTarget::Fun(target_kind, trait_fun, typ_args, impl_paths, autospec_usage);
     let args = Arc::new(vec![arg.clone()]);
     let x = ExprX::Call(call_target, args);
 
